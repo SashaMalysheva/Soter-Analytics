@@ -3,11 +3,15 @@ import os
 import math
 import numpy as np
 np.random.seed(10)
-from sklearn.cross_validation import train_test_split
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import AdaBoostRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.naive_bayes import GaussianNB
 
 
 def find_noise(z, swing_height=0.2):
@@ -113,21 +117,29 @@ for f in files:
             x[7, i] = bends[i].time_static
             x[8, i] = bends[i].time_up
             x[9, i] = bends[i].bend_angle
-            x[10, i] = bends[i].roll_angle
             y[i] = bends[i].weight_up - bends[i].weight_down
         x = x.T
         X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.8)
 
-        regr = AdaBoostRegressor(DecisionTreeRegressor(max_depth=4), n_estimators=300,
-                                 random_state=np.random.RandomState(1))
-        regr.fit(X_train, y_train)
-        y_p = regr.predict(X_test)
-        print(number_of_correct(y_p, y_test))
-        # Plot the results
-        plt.figure()
-        plt.scatter(np.arange(len(y_test)), y_test, c="k", label="test")
-        plt.plot(np.arange(len(y_test)), y_p, "^b")
-        plt.legend()
+        names = ["Nearest Neighbors","Linear SVM", "Decision Tree",
+                 "Random Forest", "Neural Net", "AdaBoost", "Naive Bayes"]
+
+        classifiers = [
+            KNeighborsClassifier(),
+            SVC(kernel="linear", C=0.025),
+            DecisionTreeClassifier(),
+            RandomForestClassifier(max_depth=5, n_estimators=10),
+            MLPClassifier(solver="sgd", alpha=1),
+            AdaBoostClassifier(learning_rate=0.5),
+            GaussianNB()
+        ]
+        ans = np.zeros(len(names))
+        i = 0
+
+        for name, clf in zip(names, classifiers):
+            clf.fit(X_train, y_train)
+            ans[i] = clf.score(X_test, y_test)
+            i += 1
 
         x = np.zeros((11, len(bends)))
         y = np.zeros(len(bends))
@@ -146,16 +158,8 @@ for f in files:
             y[i] = bends[i].weight_up - bends[i].weight_down
         x = x.T
         X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.8)
-
-        regr = AdaBoostRegressor(DecisionTreeRegressor(max_depth=4), n_estimators=300,
-                                 random_state=np.random.RandomState(1))
-        regr.fit(X_train, y_train)
-        y_p = regr.predict(X_test)
-        print(number_of_correct(y_p, y_test))
-
-        # Plot the results
-        plt.figure()
-        plt.scatter(np.arange(len(y_test)), y_test, c="k", label="test")
-        plt.plot(np.arange(len(y_test)), y_p, "^g")
-        plt.legend()
-        # plt.show()
+        i = 0
+        for name, clf in zip(names, classifiers):
+            clf.fit(X_train, y_train)
+            print(name, ans[i], " -> ", clf.score(X_test, y_test))
+            i += 1
